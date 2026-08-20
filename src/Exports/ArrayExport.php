@@ -14,9 +14,7 @@ class ArrayExport implements FromArray, WithHeadings
 
     public function __construct(mixed $data = [])
     {
-        if ($data instanceof Collection) {
-            $data = $data->all();
-        } elseif (is_object($data) && method_exists($data, 'toArray')) {
+        if (is_object($data) && method_exists($data, 'toArray')) {
             $data = $data->toArray();
         }
 
@@ -28,7 +26,7 @@ class ArrayExport implements FromArray, WithHeadings
         return collect($this->items)
             ->map(function (mixed $row): array {
                 if (is_object($row)) {
-                    $row = (array) $row;
+                    $row = method_exists($row, 'toArray') ? $row->toArray() : (array) $row;
                 }
                 if (!is_array($row)) {
                     return [(string) $row];
@@ -49,7 +47,7 @@ class ArrayExport implements FromArray, WithHeadings
         }
 
         if (is_object($first)) {
-            $first = (array) $first;
+            $first = method_exists($first, 'toArray') ? $first->toArray() : (array) $first;
         }
 
         if (!is_array($first)) {
