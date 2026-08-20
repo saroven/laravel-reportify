@@ -175,31 +175,62 @@ $zipPath = Reportify::prepareZip('pdf', $request->all(), $largeData, 'exports/zi
 
 ---
 
-### 5. Listen to Export Events
+### 5. Listen to Export Events (Building a Download Manager)
 
-`Reportify` dispatches native Laravel events. Register listeners in your `EventServiceProvider`:
+`Reportify` dispatches native Laravel events during the background export lifecycle. A very common pattern (used in applications like Qoffice) is to listen to the `ExportCompleted` event and save the file details to a database table so users can access them later from a "Download Manager" UI.
+
+Here is an example of how you can build this in your `AppServiceProvider`:
 
 ```php
-namespace App\Listeners;
+namespace App\Providers;
 
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
+use Saroven\Reportify\Events\ExportStarted;
 use Saroven\Reportify\Events\ExportCompleted;
 use Saroven\Reportify\Events\ExportFailed;
-use Illuminate\Support\Facades\Log;
+use App\Models\Download; // Your custom model
 
-class HandleReportifyEvents
+class AppServiceProvider extends ServiceProvider
 {
-    public function handleExportCompleted(ExportCompleted $event): void
+    public function boot(): void
     {
-        // $event->userId, $event->title, $event->filePath, $event->exportFormat
-        Log::info("Report '{$event->title}' generated successfully at: {$event->filePath}");
-    }
+        // 1. Log when it starts
+        Event::listen(function (ExportStarted $event) {
+            Log::info("Export '{$event->title}' has started processing.");
+        });
 
-    public function handleExportFailed(ExportFailed $event): void
-    {
-        Log::error("Report '{$event->title}' failed: {$event->errorMessage}");
+        // 2. Save to database for the Download Manager when completed
+        Event::listen(function (ExportCompleted $event) {
+            if ($event->userId) {
+                Download::create([
+                    'user_id' => $event->userId,
+                    'title' => $event->title,
+                    'format' => $event->exportFormat,
+                    'file_path' => $event->filePath,
+                    'status' => 'completed',
+                ]);
+            }
+        });
+
+        // 3. Handle Failures
+        Event::listen(function (ExportFailed $event) {
+            if ($event->userId) {
+                Download::create([
+                    'user_id' => $event->userId,
+                    'title' => $event->title,
+                    'format' => $event->exportFormat,
+                    'status' => 'failed',
+                    'error' => $event->errorMessage,
+                ]);
+            }
+        });
     }
 }
 ```
+
+Then, in your application, you can simply create a `DownloadController` that fetches the files from the `downloads` table and allows the user to download them using `Storage::disk('public')->download($download->file_path)`.
 
 ---
 
