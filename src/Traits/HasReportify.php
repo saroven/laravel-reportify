@@ -86,7 +86,7 @@ trait HasReportify
             $data = $this instanceof Reportable ? $this->getExportData($requestData, 'pdfStream') : [];
         }
 
-        Reportify::streamPdf(
+        return Reportify::streamPdf(
             request: $requestData,
             response: $data,
             title: $title,
@@ -94,7 +94,5 @@ trait HasReportify
             view: $view,
             additionalData: $additionalData
         );
-
-        return null;
     }
 }

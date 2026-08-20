@@ -287,7 +287,7 @@ class ReportifyService
         string $type,
         string $view,
         array $additionalData = []
-    ): void {
+    ): \Illuminate\Http\Response {
         [$response, $additionalData] = $this->getModifiedResponse($response, $additionalData);
         $fileName = ($additionalData['filename'] ?? (str()->slug($title) . '-' . $this->fileUniqueHash)) . '.pdf';
 
@@ -317,7 +317,14 @@ class ReportifyService
             ]);
         }
 
-        $pdf->setPageMargins(5, 5, $headerMargin, $bottomMargin)->stream($fileName);
+        $pdf->setPageMargins(5, 5, $headerMargin, $bottomMargin);
+        
+        $content = $pdf->generateAsString();
+        
+        return response($content, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+        ]);
     }
 
     public function prepareZip(
