@@ -32,6 +32,7 @@ class ReportifyServiceProvider extends ServiceProvider
         Blade::component('reportify-export-group', ExportGroup::class);
         Blade::component('reportify-buttons', ExportGroup::class);
         Blade::component('reportify-actions', ExportGroup::class);
+        Blade::component('reportify-scripts', 'reportify::components.scripts');
 
         if ($this->app->runningInConsole()) {
             $this->commands([
