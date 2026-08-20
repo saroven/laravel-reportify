@@ -151,13 +151,15 @@ class ReportifyService
 
     public function exportPdf(
         array $request, Collection|array $response,
-        string $context, string $title, string $view,
+        string $context, string $title, ?string $view = null,
         array $additionalData = []
     ): ?string {
         try {
             [$response, $additionalData] = $this->getModifiedResponse($response, $additionalData);
             $this->makeDirectory($context);
             $fileName = ($additionalData['filename'] ?? (str()->slug($title) . '-' . $this->fileUniqueHash)) . '.pdf';
+            
+            $view = $view ?? config('reportify.views.empty_pdf', 'reportify::empty-pdf');
 
             $pdf = (new PdfEngine())
                 ->loadView($view, compact('response', 'request', 'additionalData'))
@@ -198,7 +200,7 @@ class ReportifyService
 
     public function exportPdfZip(
         array $request, Collection|array $response,
-        string $context, string $title, string $view,
+        string $context, string $title, ?string $view = null,
         array $additionalData = []
     ): ?string {
         return $this->prepareZip('pdf', $request, $response, $context, $title, $view, $additionalData);
@@ -206,7 +208,7 @@ class ReportifyService
 
     public function exportPdfChunk(
         array $request, Collection|array $response,
-        string $context, string $title, string $view,
+        string $context, string $title, ?string $view = null,
         array $additionalData = []
     ): ?string {
         try {
