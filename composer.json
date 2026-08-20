@@ -1,0 +1,39 @@
+{
+    "name": "saroven/laravel-reportify",
+    "description": "Unified PDF, Excel, CSV, TXT export engine for Laravel applications.",
+    "keywords": ["laravel", "pdf", "excel", "csv", "export", "reportify", "mpdf", "report-generation"],
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Saroven"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "laravel/framework": "^9.0|^10.0|^11.0",
+        "mpdf/mpdf": "^8.0",
+        "maatwebsite/excel": "^3.1",
+        "clegginabox/pdf-merger": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Saroven\\Reportify\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Saroven\\Reportify\\Providers\\ReportifyServiceProvider"
+            ],
+            "aliases": {
+                "Reportify": "Saroven\\Reportify\\Facades\\Reportify"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

@@ -1,0 +1,48 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Saroven\Reportify\Providers;
+
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\ServiceProvider;
+use Saroven\Reportify\Console\Commands\MakeExportProviderCommand;
+use Saroven\Reportify\ReportifyService;
+use Saroven\Reportify\View\Components\ExportGroup;
+
+class ReportifyServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        $this->mergeConfigFrom(
+            __DIR__ . '/../../config/reportify.php', 'reportify'
+        );
+
+        $this->app->singleton('reportify', function (): ReportifyService {
+            return new ReportifyService();
+        });
+
+        $this->app->alias('reportify', ReportifyService::class);
+    }
+
+    public function boot(): void
+    {
+        $this->loadViewsFrom(__DIR__ . '/../../resources/views', 'reportify');
+
+        Blade::component('reportify-export-group', ExportGroup::class);
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                MakeExportProviderCommand::class,
+            ]);
+
+            $this->publishes([
+                __DIR__ . '/../../config/reportify.php' => config_path('reportify.php'),
+            ], 'reportify-config');
+
+            $this->publishes([
+                __DIR__ . '/../../resources/views' => resource_path('views/vendor/reportify'),
+            ], 'reportify-views');
+        }
+    }
+}
