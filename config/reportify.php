@@ -14,6 +14,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Force Synchronous Exports
+    |--------------------------------------------------------------------------
+    |
+    | Set to true to force all exports to execute inline synchronously.
+    | Useful for client environments without background queue worker daemons.
+    |
+    */
+    'force_sync' => (bool) env('REPORTIFY_FORCE_SYNC', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Default Export Base Folder
     |--------------------------------------------------------------------------
     |

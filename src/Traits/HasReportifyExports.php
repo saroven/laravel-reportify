@@ -13,7 +13,9 @@ trait HasReportifyExports
 {
     /**
      * Handle export request directly inside controller.
-     * Streams PDF synchronously if export=pdfStream, otherwise dispatches background ProcessExportJob.
+     * Streams PDF synchronously if export=pdfStream.
+     * Auto-detects queue connection: runs inline with dispatchSync if queue connection is 'sync',
+     * or dispatches asynchronously if background queue workers exist.
      *
      * @param Request $request
      * @param string $title
@@ -48,15 +50,32 @@ trait HasReportifyExports
             return null;
         }
 
-        ProcessExportJob::dispatch(
-            requestData: $request->all(),
-            type: str()->slug($title),
-            title: $title,
-            user: auth()->id(),
-            view: $view,
-            additionalData: $additionalData,
-            dataProvider: $dataProvider
-        );
+        $isSync = config('queue.default') === 'sync' || config('reportify.force_sync', false);
+
+        if ($isSync) {
+            set_time_limit(0);
+            ini_set('memory_limit', '1024M');
+
+            ProcessExportJob::dispatchSync(
+                requestData: $request->all(),
+                type: str()->slug($title),
+                title: $title,
+                user: auth()->id(),
+                view: $view,
+                additionalData: $additionalData,
+                dataProvider: $dataProvider
+            );
+        } else {
+            ProcessExportJob::dispatch(
+                requestData: $request->all(),
+                type: str()->slug($title),
+                title: $title,
+                user: auth()->id(),
+                view: $view,
+                additionalData: $additionalData,
+                dataProvider: $dataProvider
+            );
+        }
 
         return back()->with('success', "Export for '{$title}' processed successfully. Check Download Manager.");
     }
