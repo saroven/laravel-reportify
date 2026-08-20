@@ -8,7 +8,7 @@
 
 - 📑 **Multi-Format Support**: Generate PDF, Excel (.xlsx), CSV, TXT, and ZIP archives.
 - ⚡ **Synchronous PDF Streaming**: Directly stream formatted PDF documents in the browser.
-- 🔄 **Asynchronous Queued Jobs**: Process heavy exports in background queue jobs (`ProcessExportJob`) with real-time download manager lifecycle hooks (`Processing`, `Completed`, `Failed`).
+- 🔄 **Asynchronous Queued Jobs**: Process heavy exports in background queue jobs (`ProcessReportJob`) with real-time download manager lifecycle hooks (`Processing`, `Completed`, `Failed`).
 - 🧩 **PDF Chunking & Merging**: Automatically chunk huge datasets into smaller PDF files and seamlessly merge them using `PDFMerger`.
 - 🎨 **Blade Views & PDF Headers/Footers**: Fully customizable company PDF headers, page footers, print dates, authenticated user stamps, and page numbers (`Page X of Y`).
 - 🔘 **Blade Action Component**: Standard UI export button dropdown `<x-reportify-export-group>`.
@@ -182,11 +182,11 @@ $filePath = Reportify::exportPdfChunk($request->all(), $largeDataCollection, 'ex
 Dispatch queued export processing:
 
 ```php
-use Saroven\Reportify\Jobs\ProcessExportJob;
+use Saroven\Reportify\Jobs\ProcessReportJob;
 
 public function export(Request $request)
 {
-    ProcessExportJob::dispatch(
+    ProcessReportJob::dispatch(
         $request->all(),
         'client-ledger-report',
         'Client Ledger Statement',

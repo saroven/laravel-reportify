@@ -17,7 +17,7 @@ use Saroven\Reportify\ReportifyService;
 use Saroven\Reportify\Contracts\Reportable;
 use Saroven\Reportify\Enums\ExportFormat;
 
-class ProcessExportJob implements ShouldQueue
+class ProcessReportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -151,7 +151,7 @@ class ProcessExportJob implements ShouldQueue
         $deleteFn = (string) config('reportify.download_manager.delete_callback', 'importDownloadManagerDeleteFile');
 
         if ($e) {
-            Log::error(sprintf('ProcessExportJob [%s]: %s', $this->type, $e->getMessage()), ['exception' => $e]);
+            Log::error(sprintf('ProcessReportJob [%s]: %s', $this->type, $e->getMessage()), ['exception' => $e]);
         }
 
         if ($this->idmId) {

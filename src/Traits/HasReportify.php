@@ -6,7 +6,7 @@ namespace Saroven\Reportify\Traits;
 
 use Illuminate\Http\Request;
 use Saroven\Reportify\Facades\Reportify;
-use Saroven\Reportify\Jobs\ProcessExportJob;
+use Saroven\Reportify\Jobs\ProcessReportJob;
 use Saroven\Reportify\Contracts\Reportable;
 
 trait HasReportify
@@ -43,7 +43,7 @@ trait HasReportify
             set_time_limit(0);
             ini_set('memory_limit', '1024M');
 
-            ProcessExportJob::dispatchSync(
+            ProcessReportJob::dispatchSync(
                 requestData: $requestData,
                 type: str()->slug($title),
                 title: $title,
@@ -53,7 +53,7 @@ trait HasReportify
                 dataProvider: $dataProvider
             );
         } else {
-            ProcessExportJob::dispatch(
+            ProcessReportJob::dispatch(
                 requestData: $requestData,
                 type: str()->slug($title),
                 title: $title,
