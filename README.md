@@ -196,6 +196,42 @@ public function print(Request $request)
 
 ---
 
+### 4. PDF Chunking & Large Dataset Processing (`pdfChunk`)
+
+When exporting large datasets (e.g. 5,000 to 50,000+ records), rendering everything in a single mPDF memory buffer can trigger memory limit crashes or mPDF backtrack errors. Reportify solves this with **PDF Chunking & Merging**:
+
+```php
+use Saroven\Reportify\Facades\Reportify;
+
+// Export large dataset by automatically chunking & merging PDF parts
+$pdfPath = Reportify::exportPdfChunk(
+    request: $request->all(),
+    response: $largeUserCollection,
+    context: 'exports/pdf',
+    title: 'Large User Directory Export',
+    view: 'reports.users-pdf',
+    additionalData: ['orientation' => 'P']
+);
+```
+
+#### In Controllers via `HasReportify`:
+Simply pass `?export=pdfChunk` in request parameters:
+
+```php
+if ($request->has('export')) {
+    $view = in_array($request->get('export'), ['pdfStream', 'pdf', 'pdfChunk']) ? 'reports.users-pdf' : null;
+    return $this->exportReport($request, 'User Directory Report', view: $view, dataProvider: UserExport::class);
+}
+```
+
+#### How PDF Chunking Works:
+1. Splits records into batches based on `config('reportify.chunk_size', 2000)`.
+2. Generates standalone PDF parts in temporary storage without memory overflow.
+3. Merges all chunked PDF parts into a single output PDF using mPDF's page template importer.
+4. Automatically cleans up temporary chunk files from storage.
+
+---
+
 ### 4. Direct Multi-Format Exports
 
 Export directly using the `Reportify` Facade or `reportify()` global helper:
