@@ -100,25 +100,25 @@ return [
 
 ## 🚀 Usage
 
-### 1. Make any Controller Exportable (`Reportable` + `HasReportifyExports`)
+### 1. Make any Controller Exportable (`Reportable` + `HasReportify`)
 
-Simply implement `Reportable` and use `HasReportifyExports` trait on your controller for **1-line export handling**:
+Simply implement `Reportable` and use `HasReportify` trait on your controller for **1-line export handling**:
 
 ```php
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Saroven\Reportify\Contracts\Reportable;
-use Saroven\Reportify\Traits\HasReportifyExports;
+use Saroven\Reportify\Traits\HasReportify;
 
 class ClientController extends Controller implements Reportable
 {
-    use HasReportifyExports;
+    use HasReportify;
 
     public function index(Request $request)
     {
         if ($request->export) {
-            return $this->handleReportifyExport($request, 'Client List', 'reports.client-pdf');
+            return $this->exportReport($request, 'Client List', 'reports.client-pdf');
         }
 
         return view('client.index');

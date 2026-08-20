@@ -9,45 +9,32 @@ use Saroven\Reportify\Facades\Reportify;
 use Saroven\Reportify\Jobs\ProcessExportJob;
 use Saroven\Reportify\Contracts\Reportable;
 
-trait HasReportifyExports
+trait HasReportify
 {
     /**
      * Handle export request directly inside controller.
-     * Streams PDF synchronously if export=pdfStream.
-     * Auto-detects queue connection: runs inline with dispatchSync if queue connection is 'sync',
-     * or dispatches asynchronously if background queue workers exist.
+     * Streams PDF synchronously if export=pdfStream, otherwise handles inline sync or background queued job.
      *
-     * @param Request $request
+     * @param Request|array $request
      * @param string $title
      * @param string|null $view
      * @param array $additionalData
-     * @param mixed|null $dataProvider (Defaults to static controller class if it implements Reportable)
+     * @param mixed|null $dataProvider
      * @return mixed
      */
-    public function handleReportifyExport(
-        Request $request,
+    public function exportReport(
+        Request|array $request,
         string $title,
         ?string $view = null,
         array $additionalData = [],
         mixed $dataProvider = null
     ): mixed {
-        $exportFormat = (string) $request->get('export', 'excel');
+        $requestData = $request instanceof Request ? $request->all() : $request;
+        $exportFormat = (string) ($requestData['export'] ?? 'excel');
         $dataProvider = $dataProvider ?? ($this instanceof Reportable ? static::class : null);
 
         if ($exportFormat === 'pdfStream') {
-            $data = is_callable($dataProvider) 
-                ? call_user_func($dataProvider, $request->all(), $exportFormat) 
-                : ($this instanceof Reportable ? $this->getExportData($request->all(), $exportFormat) : []);
-
-            Reportify::streamPdf(
-                request: $request->all(),
-                response: $data,
-                title: $title,
-                type: str()->slug($title),
-                view: $view ?? config('reportify.views.empty_pdf', 'reportify::empty-pdf'),
-                additionalData: $additionalData
-            );
-            return null;
+            return $this->streamReport($requestData, $title, $view ?? config('reportify.views.empty_pdf', 'reportify::empty-pdf'), $additionalData, $dataProvider);
         }
 
         $isSync = config('queue.default') === 'sync' || config('reportify.force_sync', false);
@@ -57,7 +44,7 @@ trait HasReportifyExports
             ini_set('memory_limit', '1024M');
 
             ProcessExportJob::dispatchSync(
-                requestData: $request->all(),
+                requestData: $requestData,
                 type: str()->slug($title),
                 title: $title,
                 user: auth()->id(),
@@ -67,7 +54,7 @@ trait HasReportifyExports
             );
         } else {
             ProcessExportJob::dispatch(
-                requestData: $request->all(),
+                requestData: $requestData,
                 type: str()->slug($title),
                 title: $title,
                 user: auth()->id(),
@@ -78,5 +65,34 @@ trait HasReportifyExports
         }
 
         return back()->with('success', "Export for '{$title}' processed successfully. Check Download Manager.");
+    }
+
+    /**
+     * Directly stream PDF report.
+     */
+    public function streamReport(
+        Request|array $request,
+        string $title,
+        string $view,
+        array $additionalData = [],
+        mixed $dataProvider = null
+    ): mixed {
+        $requestData = $request instanceof Request ? $request->all() : $request;
+        $dataProvider = $dataProvider ?? ($this instanceof Reportable ? static::class : null);
+
+        $data = is_callable($dataProvider) 
+            ? call_user_func($dataProvider, $requestData, 'pdfStream') 
+            : ($this instanceof Reportable ? $this->getExportData($requestData, 'pdfStream') : []);
+
+        Reportify::streamPdf(
+            request: $requestData,
+            response: $data,
+            title: $title,
+            type: str()->slug($title),
+            view: $view,
+            additionalData: $additionalData
+        );
+
+        return null;
     }
 }

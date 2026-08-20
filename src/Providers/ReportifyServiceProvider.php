@@ -6,7 +6,7 @@ namespace Saroven\Reportify\Providers;
 
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
-use Saroven\Reportify\Console\Commands\MakeExportProviderCommand;
+use Saroven\Reportify\Console\Commands\MakeReportCommand;
 use Saroven\Reportify\ReportifyService;
 use Saroven\Reportify\View\Components\ExportGroup;
 
@@ -33,7 +33,7 @@ class ReportifyServiceProvider extends ServiceProvider
 
         if ($this->app->runningInConsole()) {
             $this->commands([
-                MakeExportProviderCommand::class,
+                MakeReportCommand::class,
             ]);
 
             $this->publishes([

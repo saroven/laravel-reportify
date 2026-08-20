@@ -56,7 +56,7 @@ return [
         'recursion_limit' => '1000000000',
         'default_paper_size' => 'A4',
         'default_orientation' => 'P',
-        'author' => env('APP_NAME', 'QFL'),
+        'author' => env('APP_NAME', 'Laravel'),
     ],
 
     /*
