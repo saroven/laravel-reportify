@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Saroven\Reportify;
 
 use Exception;
-use Clegginabox\PDFMerger\PDFMerger;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -411,13 +410,26 @@ class ReportifyService
     private function mergePdfFiles(array $files, string $context, string $fileName, array $additionalData = []): ?string
     {
         try {
-            $pdf = new PDFMerger();
+            $pdf = (new PdfEngine())
+                ->setPaper(
+                    $additionalData['paper_size'] ?? config('reportify.mpdf.default_paper_size', 'A4'),
+                    $additionalData['orientation'] ?? config('reportify.mpdf.default_orientation', 'P')
+                );
+
+            $mPdf = $pdf->getInstance();
+
             foreach ($files as $file) {
-                $pdf->addPDF(Storage::disk($this->disk)->path($file));
+                $fullPath = Storage::disk($this->disk)->path($file);
+                $pageCount = $mPdf->setSourceFile($fullPath);
+                
+                for ($i = 1; $i <= $pageCount; $i++) {
+                    $mPdf->AddPage();
+                    $tplIdx = $mPdf->importPage($i);
+                    $mPdf->useTemplate($tplIdx, 0, 0, null, null, true);
+                }
             }
 
-            $targetPath = Storage::disk($this->disk)->path("{$context}/{$fileName}");
-            $pdf->merge('file', $targetPath, $additionalData['orientation'] ?? 'P');
+            $pdf->export($fileName, $context);
             
             Storage::disk($this->disk)->delete($files);
             return "{$context}/{$fileName}";
