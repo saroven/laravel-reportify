@@ -30,6 +30,8 @@ class ReportifyServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__ . '/../../resources/views', 'reportify');
 
         Blade::component('reportify-export-group', ExportGroup::class);
+        Blade::component('reportify-buttons', ExportGroup::class);
+        Blade::component('reportify-actions', ExportGroup::class);
 
         if ($this->app->runningInConsole()) {
             $this->commands([

@@ -202,10 +202,10 @@ public function export(Request $request)
 
 ### 4. Blade Action Buttons Component
 
-Render standard export action buttons in your views:
+Render standard export action buttons in your views (using any of the tag aliases `<x-reportify-buttons>`, `<x-reportify-actions>`, or `<x-reportify-export-group>`):
 
 ```html
-<x-reportify-export-group
+<x-reportify-buttons
     :pdfStream="['url' => '#', 'onClick' => 'exportLinkRedirectWithUrlParams(event, {type: `pdfStream`})']"
     :pdf="['url' => '#', 'onClick' => 'exportLinkRedirectWithUrlParams(event, {type: `pdfChunk`})']"
     :excel="['url' => '#', 'onClick' => 'exportLinkRedirectWithUrlParams(event, {type: `excel`})']"
