@@ -77,9 +77,14 @@ trait HasReportify
         $requestData = $request instanceof Request ? $request->all() : $request;
         $dataProvider = $dataProvider ?? ($this instanceof Reportable ? static::class : null);
 
-        $data = is_callable($dataProvider) 
-            ? call_user_func($dataProvider, $requestData, 'pdfStream') 
-            : ($this instanceof Reportable ? $this->getExportData($requestData, 'pdfStream') : []);
+        if (is_callable($dataProvider)) {
+            $data = call_user_func($dataProvider, $requestData, 'pdfStream');
+        } elseif (is_string($dataProvider) && class_exists($dataProvider)) {
+            $instance = app($dataProvider);
+            $data = $instance instanceof Reportable ? $instance->getExportData($requestData, 'pdfStream') : [];
+        } else {
+            $data = $this instanceof Reportable ? $this->getExportData($requestData, 'pdfStream') : [];
+        }
 
         Reportify::streamPdf(
             request: $requestData,
