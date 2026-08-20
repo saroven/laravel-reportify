@@ -54,7 +54,7 @@ class ReportifyService
                 ? new ViewExport($view, $request, $response, $additionalData)
                 : new ArrayExport($response);
 
-            Excel::store($exportable, "{$this->disk}/{$filePath}", null, ExcelType::XLSX);
+            Excel::store($exportable, $filePath, $this->disk, ExcelType::XLSX);
 
             return $filePath;
         } catch (Exception $e) {
@@ -86,7 +86,7 @@ class ReportifyService
                 ? new ViewExport($view, $request, $response, $additionalData)
                 : new ArrayExport($response);
 
-            Excel::store($exportable, "{$this->disk}/{$filePath}", null, ExcelType::CSV);
+            Excel::store($exportable, $filePath, $this->disk, ExcelType::CSV);
 
             return $filePath;
         } catch (Exception $e) {
@@ -371,11 +371,11 @@ class ReportifyService
             }
 
             $zip = new ZipArchive();
-            $zipPath = storage_path("app/{$this->disk}/{$context}/{$fileName}");
+            $zipPath = Storage::disk($this->disk)->path("{$context}/{$fileName}");
 
             if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
                 foreach ($chunkedFiles as $file) {
-                    $absFile = storage_path("app/{$this->disk}/{$file}");
+                    $absFile = Storage::disk($this->disk)->path($file);
                     if (File::exists($absFile)) {
                         $zip->addFile($absFile, basename($absFile));
                     }
@@ -413,10 +413,10 @@ class ReportifyService
         try {
             $pdf = new PDFMerger();
             foreach ($files as $file) {
-                $pdf->addPDF(storage_path("app/{$this->disk}/{$file}"));
+                $pdf->addPDF(Storage::disk($this->disk)->path($file));
             }
 
-            $targetPath = storage_path("app/{$this->disk}/{$context}/{$fileName}");
+            $targetPath = Storage::disk($this->disk)->path("{$context}/{$fileName}");
             $pdf->merge('file', $targetPath, $additionalData['orientation'] ?? 'P');
             
             Storage::disk($this->disk)->delete($files);
@@ -430,6 +430,9 @@ class ReportifyService
     private function modifyPdfFooter(string $context, string $fileName, array $additionalData = []): ?string
     {
         try {
+            $filePath = "{$context}/{$fileName}";
+            $fullPath = Storage::disk($this->disk)->path($filePath);
+
             $headerMargin = 5;
             if (!($additionalData['hidePdfHeader'] ?? false)) {
                 $headerHtml = $additionalData['headerHtml'] ?? '';
@@ -443,7 +446,11 @@ class ReportifyService
                 )
                 ->setPageMargins(5, 5, $headerMargin, 15);
 
-            $pageCount = $pdf->getInstance()->setSourceFile(storage_path("app/{$this->disk}/{$context}/{$fileName}"));
+            if (!method_exists($pdf->getInstance(), 'setSourceFile')) {
+                return $filePath;
+            }
+
+            $pageCount = $pdf->getInstance()->setSourceFile($fullPath);
             
             for ($i = 1; $i <= $pageCount; $i++) {
                 $pdf->getInstance()->AddPage();
@@ -459,8 +466,8 @@ class ReportifyService
 
             return $pdf->export($fileName, $context);
         } catch (Exception $e) {
-            Log::error('Reportify PDF Footer Modification Error: ' . $e->getMessage(), ['exception' => $e]);
-            return null;
+            Log::warning('Reportify PDF Footer Modification Skipped: ' . $e->getMessage(), ['exception' => $e]);
+            return "{$context}/{$fileName}";
         }
     }
 

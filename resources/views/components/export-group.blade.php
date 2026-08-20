@@ -4,7 +4,7 @@
     @if(!isset($hideOthers) || !$hideOthers)
     <div class="btn-group" id="exportInOtherFormat" @isset($vIf)v-if="{{ $vIf }}"@endisset>
         <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="true" @if(isset($disableOthers) && $disableOthers) disabled @endif>
-            <i class="fas fa-file-export"></i> {{ $exportOtherFormatTitle ?? (is_mobile() ? 'Export' : 'Export In Other Format') }} <i class="mdi mdi-chevron-down"></i>
+            <i class="fas fa-file-export"></i> {{ $exportOtherFormatTitle ?? 'Export In Other Format' }} <i class="mdi mdi-chevron-down"></i>
         </button>
         <div class="dropdown-menu dropdownmenu-primary"
             style="position: absolute; inset: auto auto 0 0; margin: 0; transform: translate(0px, -40px);"
@@ -17,11 +17,11 @@
     </div>
     @endif
     @if((!isset($hidePdf) || !$hidePdf) && isset($pdfStream))
-    <a id="printBtn" href="{{ $pdfStream['url'] ?? '#' }}" @if(isset($target)) target="{{ $target }}" @endif class="btn btn-primary w-sm {{ isset($pdfStream['disabled']) && $pdfStream['disabled'] ? 'disabled-link' : '' }}" @isset($pdfStream['onClick'])onclick="{{ $pdfStream['onClick'] }}"@endisset @isset($vIf)v-if="{{ $vIf }}"@endisset><i class="fa fa-print"></i> @mobile Print @else Print @endmobile</a>
+    <a id="printBtn" href="{{ $pdfStream['url'] ?? '#' }}" @if(isset($target)) target="{{ $target }}" @endif class="btn btn-primary w-sm {{ isset($pdfStream['disabled']) && $pdfStream['disabled'] ? 'disabled-link' : '' }}" @isset($pdfStream['onClick'])onclick="{{ $pdfStream['onClick'] }}"@endisset @isset($vIf)v-if="{{ $vIf }}"@endisset><i class="fa fa-print"></i> Print</a>
     @endif
 
     @if((!isset($hidePdf) || !$hidePdf) && isset($pdf))
-    <a id="pdfExportBtn" href="{{ $pdf['url'] ?? '#' }}" @if(isset($target)) target="{{ $target }}" @endif  class="btn btn-danger w-sm {{ isset($pdf['disabled']) ? 'disabled-link' : '' }}" @isset($pdf['onClick'])onclick="{{ $pdf['onClick'] }}"@endisset @isset($vIf)v-if="{{ $vIf }}"@endisset><i class="fa fa-file-pdf"></i> @mobile PDF @else PDF Export @endmobile</a>
+    <a id="pdfExportBtn" href="{{ $pdf['url'] ?? '#' }}" @if(isset($target)) target="{{ $target }}" @endif  class="btn btn-danger w-sm {{ isset($pdf['disabled']) ? 'disabled-link' : '' }}" @isset($pdf['onClick'])onclick="{{ $pdf['onClick'] }}"@endisset @isset($vIf)v-if="{{ $vIf }}"@endisset><i class="fa fa-file-pdf"></i> PDF Export</a>
     @endif
 
     {{ $additionalContentAfter ?? '' }}

@@ -40,9 +40,6 @@ trait HasReportify
         $isSync = config('queue.default') === 'sync' || config('reportify.force_sync', false);
 
         if ($isSync) {
-            set_time_limit(0);
-            ini_set('memory_limit', '1024M');
-
             ProcessReportJob::dispatchSync(
                 requestData: $requestData,
                 type: str()->slug($title),

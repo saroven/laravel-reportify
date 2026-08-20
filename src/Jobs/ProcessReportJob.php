@@ -28,7 +28,6 @@ class ProcessReportJob implements ShouldQueue
     public int $timeout = 3600;
     public int $backoff = 90;
 
-    private ReportifyService $reportifyService;
     private string $type;
     private string $title;
     private string $context;
@@ -49,7 +48,6 @@ class ProcessReportJob implements ShouldQueue
         array $additionalData = [],
         mixed $dataProvider = null
     ) {
-        $this->reportifyService = new ReportifyService($additionalData, $user);
         $this->type = $type;
         $this->title = $title ?? 'Document';
         $this->payload = $requestData;
@@ -64,6 +62,8 @@ class ProcessReportJob implements ShouldQueue
 
     public function handle(): void
     {
+        $reportifyService = new ReportifyService($this->additionalData, $this->authUser);
+
         // 1. Dispatch ExportStarted Event
         ExportStarted::dispatch($this->authUser, $this->title, $this->exportType, $this->payload);
 
@@ -79,11 +79,11 @@ class ProcessReportJob implements ShouldQueue
 
         $exportMethod = 'export' . ucfirst($this->exportType);
         
-        if (!method_exists($this->reportifyService, $exportMethod)) {
+        if (!method_exists($reportifyService, $exportMethod)) {
             throw new Exception("Export method '{$exportMethod}' is not supported.");
         }
 
-        $filePath = $this->reportifyService->{$exportMethod}(
+        $filePath = $reportifyService->{$exportMethod}(
             $this->payload,
             $response,
             $this->context,

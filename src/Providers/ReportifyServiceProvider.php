@@ -18,7 +18,7 @@ class ReportifyServiceProvider extends ServiceProvider
             __DIR__ . '/../../config/reportify.php', 'reportify'
         );
 
-        $this->app->singleton('reportify', function (): ReportifyService {
+        $this->app->bind('reportify', function (): ReportifyService {
             return new ReportifyService();
         });
 
@@ -29,10 +29,10 @@ class ReportifyServiceProvider extends ServiceProvider
     {
         $this->loadViewsFrom(__DIR__ . '/../../resources/views', 'reportify');
 
-        Blade::component('reportify-export-group', ExportGroup::class);
-        Blade::component('reportify-buttons', ExportGroup::class);
-        Blade::component('reportify-actions', ExportGroup::class);
-        Blade::component('reportify-scripts', 'reportify::components.scripts');
+        Blade::component(ExportGroup::class, 'reportify-export-group');
+        Blade::component(ExportGroup::class, 'reportify-buttons');
+        Blade::component(ExportGroup::class, 'reportify-actions');
+        Blade::component('reportify::components.scripts', 'reportify-scripts');
 
         if ($this->app->runningInConsole()) {
             $this->commands([

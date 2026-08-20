@@ -57,9 +57,19 @@ class PdfEngine
         return $this;
     }
 
-    public function setPaper(string $size = 'A4', string $orientation = 'portrait'): static
+    public function setPaper(string $size = 'A4', string $orientation = 'P'): static
     {
-        $this->mpdf->_setPageSize($size, $orientation);
+        $orient = strtoupper(substr($orientation, 0, 1)) === 'L' ? 'L' : 'P';
+        $author = (string) (config('reportify.mpdf.author') ?? config('app.name', 'Laravel'));
+
+        $this->mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            'format' => $size,
+            'orientation' => $orient,
+        ]);
+        $this->mpdf->setAutoBottomMargin = 'stretch';
+        $this->setAuthor($author);
+
         return $this;
     }
 
