@@ -122,7 +122,7 @@ class ReportifyService
                 $txtData = collect($response)
                     ->map(function (mixed $data) use ($separator): string {
                         if (is_object($data)) {
-                            $data = (array) $data;
+                            $data = method_exists($data, 'toArray') ? $data->toArray() : (array) $data;
                         }
                         if (!is_array($data)) {
                             return (string) $data;
