@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Log;
 use Saroven\Reportify\ReportifyService;
 use Saroven\Reportify\Contracts\Reportable;
 use Saroven\Reportify\Enums\ExportFormat;
+use Saroven\Reportify\Events\ExportStarted;
+use Saroven\Reportify\Events\ExportCompleted;
+use Saroven\Reportify\Events\ExportFailed;
 
 class ProcessReportJob implements ShouldQueue
 {
@@ -32,7 +35,6 @@ class ProcessReportJob implements ShouldQueue
     private array $payload;
     private int|string|null $authUser;
     private string $exportType;
-    private mixed $idmId = null;
     private ?string $view;
     private array $additionalData;
     private bool $hideNoDataException;
@@ -58,25 +60,12 @@ class ProcessReportJob implements ShouldQueue
         $this->additionalData = $additionalData;
         $this->hideNoDataException = (bool) ($additionalData['no_data_exception_disabled'] ?? false);
         $this->dataProvider = $dataProvider;
-
-        if (config('reportify.download_manager.enabled', true)) {
-            $createFn = (string) config('reportify.download_manager.create_callback', 'importDownloadManagerCreate');
-            if (function_exists($createFn) && !($additionalData['idm_disabled'] ?? false)) {
-                $idmTitle = function_exists('getExportIdmTitle') 
-                    ? getExportIdmTitle($this->title, $this->exportType, $this->payload) 
-                    : $this->title;
-                $this->idmId = $createFn($this->authUser, $idmTitle, 'Download', null, !$this->authUser ? ['Super Admin', 'IT'] : null);
-            }
-        }
     }
 
     public function handle(): void
     {
-        $updateFn = (string) config('reportify.download_manager.update_callback', 'importDownloadManagerUpdate');
-
-        if ($this->idmId && function_exists($updateFn)) {
-            $updateFn($this->idmId, 'Processing', 'Export processing!', null, null, false);
-        }
+        // 1. Dispatch ExportStarted Event
+        ExportStarted::dispatch($this->authUser, $this->title, $this->exportType, $this->payload);
 
         if (ExportFormat::tryFrom($this->exportType) === null) {
             throw new Exception("Export process failed! Unknown export format: {$this->exportType}");
@@ -107,9 +96,8 @@ class ProcessReportJob implements ShouldQueue
             throw new Exception('Export process failed! Output file could not be generated.');
         }
 
-        if ($this->idmId && function_exists($updateFn)) {
-            $updateFn($this->idmId, 'Completed', 'Export process successfully completed!', $filePath);
-        }
+        // 2. Dispatch ExportCompleted Event
+        ExportCompleted::dispatch($this->authUser, $this->title, $this->exportType, (string) $filePath, $this->payload);
     }
 
     private function resolveData(): mixed
@@ -147,20 +135,13 @@ class ProcessReportJob implements ShouldQueue
 
     public function failed(?Throwable $e): void
     {
-        $updateFn = (string) config('reportify.download_manager.update_callback', 'importDownloadManagerUpdate');
-        $deleteFn = (string) config('reportify.download_manager.delete_callback', 'importDownloadManagerDeleteFile');
-
+        $message = $e?->getMessage() ?? 'Export process failed';
+        
         if ($e) {
-            Log::error(sprintf('ProcessReportJob [%s]: %s', $this->type, $e->getMessage()), ['exception' => $e]);
+            Log::error(sprintf('ProcessReportJob [%s]: %s', $this->type, $message), ['exception' => $e]);
         }
 
-        if ($this->idmId) {
-            if (function_exists($updateFn)) {
-                $updateFn($this->idmId, 'Failed', $e?->getMessage() ?? 'Export process failed');
-            }
-            if (function_exists($deleteFn)) {
-                $deleteFn($this->idmId);
-            }
-        }
+        // 3. Dispatch ExportFailed Event
+        ExportFailed::dispatch($this->authUser, $this->title, $this->exportType, $message, $this->payload);
     }
 }

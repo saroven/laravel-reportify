@@ -72,19 +72,4 @@ return [
         'pdf_footer' => 'reportify::pdf-footer',
         'empty_pdf'  => 'reportify::empty-pdf',
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Download Manager Integration Hook
-    |--------------------------------------------------------------------------
-    |
-    | Functions or callbacks used for logging background job status updates.
-    |
-    */
-    'download_manager' => [
-        'enabled' => true,
-        'create_callback' => 'importDownloadManagerCreate',
-        'update_callback' => 'importDownloadManagerUpdate',
-        'delete_callback' => 'importDownloadManagerDeleteFile',
-    ],
 ];
