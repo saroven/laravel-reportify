@@ -19,9 +19,19 @@
 
 ## 💻 Installation & Setup
 
-### 1. Require Package
+### Option 1: Standard Installation (GitHub / Packagist)
 
-In your application's `composer.json`, add the local path repository or Git repository:
+If the package is published on Packagist or hosted on GitHub:
+
+```bash
+composer require saroven/laravel-reportify
+```
+
+---
+
+### Option 2: Local Development & Testing (Path Repository)
+
+If you are developing or testing the package locally on your computer (e.g. alongside `qoffice` or `mbbOffice`), add a `path` repository to your app's `composer.json`:
 
 ```json
 "repositories": [
@@ -29,16 +39,13 @@ In your application's `composer.json`, add the local path repository or Git repo
         "type": "path",
         "url": "../laravel-reportify"
     }
-],
-"require": {
-    "saroven/laravel-reportify": "dev-main"
-}
+]
 ```
 
 Then run:
 
 ```bash
-composer update saroven/laravel-reportify
+composer require saroven/laravel-reportify:dev-main
 ```
 
 ### 2. Publish Config & Views (Optional)
