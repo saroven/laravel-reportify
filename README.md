@@ -31,7 +31,7 @@ composer require saroven/laravel-reportify
 
 ### Option 2: Local Development & Testing (Path Repository)
 
-If you are developing or testing the package locally on your computer (e.g. alongside `qoffice` or `mbbOffice`), add a `path` repository to your app's `composer.json`:
+If you are developing or testing the package locally on your computer alongside another Laravel application, add a `path` repository to your app's `composer.json`:
 
 ```json
 "repositories": [
