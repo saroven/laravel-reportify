@@ -3,8 +3,26 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/saroven/laravel-reportify.svg?style=flat-square)](https://packagist.org/packages/saroven/laravel-reportify)
 [![Total Downloads](https://img.shields.io/packagist/dt/saroven/laravel-reportify.svg?style=flat-square)](https://packagist.org/packages/saroven/laravel-reportify)
 [![License](https://img.shields.io/packagist/l/saroven/laravel-reportify.svg?style=flat-square)](LICENSE.md)
+[![Demo Repository](https://img.shields.io/badge/Demo%20Repo-laravel--reportify--demo-blue?style=flat-square&logo=github)](https://github.com/saroven/laravel-reportify-demo)
 
 **Reportify** is a unified, high-performance report generation and document export engine for Laravel applications. Easily stream or export **PDFs (via mPDF)**, **Excel (.xlsx)**, **CSV**, **TXT**, and **ZIP archives** using clean Laravel syntax, event-driven background queues, and customizable Blade templates.
+
+---
+
+## 🎮 Demo Application
+
+A complete working demo showing User Directory exports, PDF streaming, and a full Download Manager lifecycle implementation is available at:
+
+👉 **[https://github.com/saroven/laravel-reportify-demo](https://github.com/saroven/laravel-reportify-demo)**
+
+```bash
+# Clone and run the demo locally
+git clone https://github.com/saroven/laravel-reportify-demo.git
+cd laravel-reportify-demo
+composer install
+php artisan migrate:fresh --seed
+php artisan serve
+```
 
 ---
 
@@ -50,6 +68,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Saroven\Reportify\Contracts\Reportable;
 use Saroven\Reportify\Traits\HasReportify;
+use App\Exports\UserExport;
 use App\Models\User;
 
 class UserController extends Controller implements Reportable
@@ -58,16 +77,19 @@ class UserController extends Controller implements Reportable
 
     public function index(Request $request)
     {
+        // Intercept export requests (e.g. ?export=pdfStream or ?export=excel)
         if ($request->has('export')) {
-            return $this->exportReport($request, 'Users Report', 'reports.users-pdf');
+            $view = in_array($request->get('export'), ['pdfStream', 'pdf']) ? 'reports.users-pdf' : null;
+            return $this->exportReport($request, 'User Directory Report', view: $view, dataProvider: UserExport::class);
         }
 
-        return view('users.index');
+        $users = User::latest('id')->paginate(10);
+        return view('users.index', compact('users'));
     }
 
     public function getExportData(array $payload, string $exportType, int|string|null $userId = null): mixed
     {
-        return User::query()->where('status', 'active')->get();
+        return User::query()->get();
     }
 }
 ```
@@ -87,21 +109,42 @@ This creates `app/Exports/UserExport.php`:
 ```php
 namespace App\Exports;
 
-use Saroven\Reportify\Contracts\Reportable;
 use App\Models\User;
+use Saroven\Reportify\Contracts\Reportable;
 
 class UserExport implements Reportable
 {
     public function getExportData(array $payload, string $exportType, int|string|null $userId = null): mixed
     {
-        return User::query()
-            ->when($payload['role'] ?? null, fn($q, $r) => $q->where('role', $r))
-            ->get();
+        $query = User::query();
+
+        if (!empty($payload['search'])) {
+            $search = $payload['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        // Return clean mapped attributes for spreadsheet and plain text exports
+        return $query->latest('id')->get()->map(function (User $user) {
+            return [
+                'ID' => $user->id,
+                'Name' => $user->name,
+                'Email' => $user->email,
+                'Role' => $user->role,
+                'Department' => $user->department ?? '-',
+                'Phone' => $user->phone ?? '-',
+                'Status' => $user->status,
+                'Created At' => $user->created_at ? $user->created_at->format('Y-m-d H:i:s') : '-',
+            ];
+        });
     }
 }
 ```
 
-Dispatch background exports using the generated class name:
+Dispatch background exports manually using `ProcessReportJob`:
 
 ```php
 use App\Exports\UserExport;
@@ -177,50 +220,66 @@ $zipPath = Reportify::prepareZip('pdf', $request->all(), $largeData, 'exports/zi
 
 ### 5. Listen to Export Events (Building a Download Manager)
 
-`Reportify` dispatches native Laravel events during the background export lifecycle. A very common pattern (used in applications like Qoffice) is to listen to the `ExportCompleted` event and save the file details to a database table so users can access them later from a "Download Manager" UI.
-
-Here is an example of how you can build this in your `AppServiceProvider`:
+`Reportify` dispatches native Laravel events during the export processing lifecycle (`ExportStarted`, `ExportCompleted`, `ExportFailed`). You can listen to these events in `AppServiceProvider.php` to track job statuses and build a Download Manager:
 
 ```php
 namespace App\Providers;
 
+use App\Models\Download;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Log;
 use Saroven\Reportify\Events\ExportStarted;
 use Saroven\Reportify\Events\ExportCompleted;
 use Saroven\Reportify\Events\ExportFailed;
-use App\Models\Download; // Your custom model
 
 class AppServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        // 1. Log when it starts
+        // 1. Export Started -> Record initial 'processing' status
         Event::listen(function (ExportStarted $event) {
-            Log::info("Export '{$event->title}' has started processing.");
+            Download::create([
+                'user_id' => $event->userId ?: null,
+                'title' => $event->title,
+                'format' => strtoupper($event->exportFormat),
+                'status' => 'processing',
+            ]);
         });
 
-        // 2. Save to database for the Download Manager when completed
+        // 2. Export Completed -> Update status to 'completed' with file path
         Event::listen(function (ExportCompleted $event) {
-            if ($event->userId) {
+            $download = Download::where('title', $event->title)
+                ->where('format', strtoupper($event->exportFormat))
+                ->where('status', 'processing')
+                ->latest('id')
+                ->first();
+
+            if ($download) {
+                $download->update([
+                    'file_path' => $event->filePath,
+                    'status' => 'completed',
+                ]);
+            } else {
                 Download::create([
-                    'user_id' => $event->userId,
+                    'user_id' => $event->userId ?: null,
                     'title' => $event->title,
-                    'format' => $event->exportFormat,
+                    'format' => strtoupper($event->exportFormat),
                     'file_path' => $event->filePath,
                     'status' => 'completed',
                 ]);
             }
         });
 
-        // 3. Handle Failures
+        // 3. Export Failed -> Update status to 'failed' with error details
         Event::listen(function (ExportFailed $event) {
-            if ($event->userId) {
-                Download::create([
-                    'user_id' => $event->userId,
-                    'title' => $event->title,
-                    'format' => $event->exportFormat,
+            $download = Download::where('title', $event->title)
+                ->where('format', strtoupper($event->exportFormat))
+                ->where('status', 'processing')
+                ->latest('id')
+                ->first();
+
+            if ($download) {
+                $download->update([
                     'status' => 'failed',
                     'error' => $event->errorMessage,
                 ]);
@@ -230,7 +289,29 @@ class AppServiceProvider extends ServiceProvider
 }
 ```
 
-Then, in your application, you can simply create a `DownloadController` that fetches the files from the `downloads` table and allows the user to download them using `Storage::disk('public')->download($download->file_path)`.
+Then create a `DownloadController` to serve the generated files:
+
+```php
+namespace App\Http\Controllers;
+
+use App\Models\Download;
+use Illuminate\Support\Facades\Storage;
+
+class DownloadController extends Controller
+{
+    public function index()
+    {
+        $downloads = Download::latest('id')->paginate(10);
+        return view('downloads.index', compact('downloads'));
+    }
+
+    public function download(Download $download)
+    {
+        $disk = config('reportify.storage_disk', 'public');
+        return Storage::disk($disk)->download($download->file_path);
+    }
+}
+```
 
 ---
 
@@ -242,7 +323,7 @@ Include drop-in action buttons in your views:
 <!-- Render export dropdown buttons -->
 <x-reportify-buttons
     :pdfStream="['url' => '#', 'onClick' => 'exportLinkRedirectWithUrlParams(event, {type: `pdfStream`})']"
-    :pdf="['url' => '#', 'onClick' => 'exportLinkRedirectWithUrlParams(event, {type: `pdfChunk`})']"
+    :pdf="['url' => '#', 'onClick' => 'exportLinkRedirectWithUrlParams(event, {type: `pdf`})']"
     :excel="['url' => '#', 'onClick' => 'exportLinkRedirectWithUrlParams(event, {type: `excel`})']"
     :csv="['url' => '#', 'onClick' => 'exportLinkRedirectWithUrlParams(event, {type: `csv`})']"
     :txt="['url' => '#', 'onClick' => 'exportLinkRedirectWithUrlParams(event, {type: `txt`})']"
