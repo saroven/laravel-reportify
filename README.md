@@ -266,6 +266,16 @@ return [
 
 ---
 
+## 🧪 Testing
+
+Run the test suite using Pest PHP:
+
+```bash
+vendor/bin/pest
+```
+
+---
+
 ## 📜 License
 
 The MIT License (MIT). See [LICENSE.md](LICENSE.md) for details.
