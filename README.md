@@ -424,6 +424,11 @@ vendor/bin/pest
 
 ---
 
+## 💳 Credits
+- Special thanks to [S M Iftakhairul](https://github.com/smiftakhairul-qfl) for architecture & design inspiration.
+
+---
+
 ## 📜 License
 
 The MIT License (MIT). See [LICENSE.md](LICENSE.md) for details.
