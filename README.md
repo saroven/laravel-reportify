@@ -425,7 +425,7 @@ vendor/bin/pest
 ---
 
 ## 💳 Credits
-- Special thanks to [S M Iftakhairul](https://github.com/smiftakhairul-qfl) for architecture & design inspiration.
+- Special thanks to [S M Iftakhairul](https://github.com/smiftakhairul) for architecture & design inspiration.
 
 ---
 
