@@ -162,11 +162,11 @@ class ReportifyService
             $view = $view ?? config('reportify.views.empty_pdf', 'reportify::empty-pdf');
 
             $pdf = (new PdfEngine())
-                ->loadView($view, compact('response', 'request', 'additionalData'))
                 ->setPaper(
                     $additionalData['paper_size'] ?? config('reportify.mpdf.default_paper_size', 'A4'),
                     $additionalData['orientation'] ?? config('reportify.mpdf.default_orientation', 'P')
-                );
+                )
+                ->loadView($view, compact('response', 'request', 'additionalData'));
 
             $headerMargin = 5;
             if (!($additionalData['hidePdfHeader'] ?? false)) {
@@ -295,11 +295,11 @@ class ReportifyService
         $fileName = ($additionalData['filename'] ?? (str()->slug($title) . '-' . $this->fileUniqueHash)) . '.pdf';
 
         $pdf = (new PdfEngine())
-            ->loadView($view, compact('response', 'request', 'additionalData'))
             ->setPaper(
                 $additionalData['paper_size'] ?? config('reportify.mpdf.default_paper_size', 'A4'),
                 $additionalData['orientation'] ?? config('reportify.mpdf.default_orientation', 'P')
-            );
+            )
+            ->loadView($view, compact('response', 'request', 'additionalData'));
 
         $headerMargin = 5;
         if (!($additionalData['hidePdfHeader'] ?? false)) {
