@@ -34,3 +34,16 @@ it('dispatches ExportFailed event', function () {
         return $event->errorMessage === 'Memory limit exceeded';
     });
 });
+
+it('attaches unique exportId across all three events', function () {
+    Event::fake();
+    $uuid = 'test-export-uuid-1234';
+
+    ExportStarted::dispatch(1, 'Report', 'excel', [], $uuid);
+    ExportCompleted::dispatch(1, 'Report', 'excel', 'exports/report.xlsx', [], $uuid);
+    ExportFailed::dispatch(1, 'Report', 'excel', 'Error', [], $uuid);
+
+    Event::assertDispatched(ExportStarted::class, fn ($e) => $e->exportId === $uuid);
+    Event::assertDispatched(ExportCompleted::class, fn ($e) => $e->exportId === $uuid);
+    Event::assertDispatched(ExportFailed::class, fn ($e) => $e->exportId === $uuid);
+});

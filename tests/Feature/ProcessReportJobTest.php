@@ -60,3 +60,28 @@ it('allows export with null dataProvider when no_data_exception_disabled is true
     // Verify the flag is honoured at construction — no exception thrown
     expect($job)->toBeInstanceOf(ProcessReportJob::class);
 });
+
+it('generates a unique uuid exportId by default', function () {
+    $job1 = new ProcessReportJob(requestData: ['export' => 'excel'], dataProvider: null);
+    $job2 = new ProcessReportJob(requestData: ['export' => 'excel'], dataProvider: null);
+
+    expect($job1->getExportId())->not->toBeEmpty()
+        ->and($job2->getExportId())->not->toBeEmpty()
+        ->and($job1->getExportId())->not->toBe($job2->getExportId());
+});
+
+it('respects explicitly provided exportId or additionalData export_id', function () {
+    $jobExplicit = new ProcessReportJob(
+        requestData: ['export' => 'excel'],
+        dataProvider: null,
+        exportId: 'custom-export-id-999'
+    );
+    expect($jobExplicit->getExportId())->toBe('custom-export-id-999');
+
+    $jobAdditional = new ProcessReportJob(
+        requestData: ['export' => 'excel'],
+        additionalData: ['export_id' => 'additional-data-id-777'],
+        dataProvider: null
+    );
+    expect($jobAdditional->getExportId())->toBe('additional-data-id-777');
+});

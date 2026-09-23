@@ -27,11 +27,13 @@ trait HasReportify
         string $title,
         ?string $view = null,
         array $additionalData = [],
-        mixed $dataProvider = null
+        mixed $dataProvider = null,
+        ?string $exportId = null
     ): mixed {
         $requestData = $request instanceof Request ? $request->all() : $request;
         $exportFormat = (string) ($requestData['export'] ?? 'excel');
         $dataProvider = $dataProvider ?? ($this instanceof Reportable ? static::class : null);
+        $exportId = $exportId ?? (string) ($additionalData['export_id'] ?? $requestData['_export_id'] ?? (string) str()->uuid());
 
         if ($exportFormat === 'pdfStream') {
             return $this->streamReport($requestData, $title, $view ?? config('reportify.views.empty_pdf', 'reportify::empty-pdf'), $additionalData, $dataProvider);
@@ -47,7 +49,8 @@ trait HasReportify
                 user: auth()->id(),
                 view: $view,
                 additionalData: $additionalData,
-                dataProvider: $dataProvider
+                dataProvider: $dataProvider,
+                exportId: $exportId
             );
         } else {
             ProcessReportJob::dispatch(
@@ -57,11 +60,12 @@ trait HasReportify
                 user: auth()->id(),
                 view: $view,
                 additionalData: $additionalData,
-                dataProvider: $dataProvider
+                dataProvider: $dataProvider,
+                exportId: $exportId
             );
         }
 
-        return $this->reportifyExportResponse($title);
+        return $this->reportifyExportResponse($title, $exportId);
     }
 
     /**
@@ -70,12 +74,18 @@ trait HasReportify
      *
      * Returns a JSON response for API requests, or a back() redirect for web requests.
      */
-    protected function reportifyExportResponse(string $title): mixed
+    protected function reportifyExportResponse(string $title, ?string $exportId = null): mixed
     {
         if (request()->expectsJson()) {
-            return response()->json([
+            $data = [
                 'message' => "Export for '{$title}' is being processed. Check Download Manager.",
-            ]);
+            ];
+
+            if ($exportId !== null) {
+                $data['export_id'] = $exportId;
+            }
+
+            return response()->json($data);
         }
 
         return back()->with('success', "Export for '{$title}' processed successfully. Check Download Manager.");

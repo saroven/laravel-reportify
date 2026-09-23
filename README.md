@@ -287,52 +287,41 @@ class AppServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        // 1. Export Started -> Record initial 'processing' status
+        // 1. Export Started -> Record initial 'processing' status with unique exportId
         Event::listen(function (ExportStarted $event) {
             Download::create([
-                'user_id' => $event->userId ?: null,
-                'title' => $event->title,
-                'format' => strtoupper($event->exportFormat),
-                'status' => 'processing',
+                'export_id' => $event->exportId,
+                'user_id'   => $event->userId ?: null,
+                'title'     => $event->title,
+                'format'    => strtoupper($event->exportFormat),
+                'status'    => 'processing',
             ]);
         });
 
-        // 2. Export Completed -> Update status to 'completed' with file path
+        // 2. Export Completed -> Update status to 'completed' matched by unique exportId
         Event::listen(function (ExportCompleted $event) {
-            $download = Download::where('title', $event->title)
-                ->where('format', strtoupper($event->exportFormat))
-                ->where('status', 'processing')
-                ->latest('id')
-                ->first();
+            $download = $event->exportId
+                ? Download::where('export_id', $event->exportId)->first()
+                : Download::where('title', $event->title)->where('status', 'processing')->latest('id')->first();
 
             if ($download) {
                 $download->update([
                     'file_path' => $event->filePath,
-                    'status' => 'completed',
-                ]);
-            } else {
-                Download::create([
-                    'user_id' => $event->userId ?: null,
-                    'title' => $event->title,
-                    'format' => strtoupper($event->exportFormat),
-                    'file_path' => $event->filePath,
-                    'status' => 'completed',
+                    'status'    => 'completed',
                 ]);
             }
         });
 
         // 3. Export Failed -> Update status to 'failed' with error details
         Event::listen(function (ExportFailed $event) {
-            $download = Download::where('title', $event->title)
-                ->where('format', strtoupper($event->exportFormat))
-                ->where('status', 'processing')
-                ->latest('id')
-                ->first();
+            $download = $event->exportId
+                ? Download::where('export_id', $event->exportId)->first()
+                : Download::where('title', $event->title)->where('status', 'processing')->latest('id')->first();
 
             if ($download) {
                 $download->update([
                     'status' => 'failed',
-                    'error' => $event->errorMessage,
+                    'error'  => $event->errorMessage,
                 ]);
             }
         });
@@ -428,6 +417,7 @@ All export methods accept an `$additionalData` array for per-report customisatio
 | Key | Type | Description |
 |-----|------|-------------|
 | `filename` | `string` | Custom output filename (without extension) |
+| `export_id` | `string` | Unique tracking UUID for the export job (auto-generated if omitted) |
 | `file_dir` | `string` | Override the output directory |
 | `orientation` | `string` | PDF orientation: `'P'` (portrait) or `'L'` (landscape) |
 | `paper_size` | `string` | mPDF paper size, e.g. `'A4'`, `'A3'`, `'Letter'` |
@@ -489,7 +479,7 @@ Reportify::exportPdf($request->all(), $data, 'exports/pdf', 'Report', 'reports.m
 
 ```php
 // Web request  → redirect back with flash message
-// API request  → JSON response: { "message": "Export for 'X' is being processed." }
+// API request  → JSON: { "message": "Export for 'X' is being processed...", "export_id": "uuid" }
 return $this->exportReport($request, 'User Report', dataProvider: UserExport::class);
 ```
 
@@ -515,7 +505,7 @@ Run the test suite using Pest PHP:
 vendor/bin/pest
 ```
 
-49 tests, 82 assertions.
+53 tests, 94 assertions.
 
 ---
 

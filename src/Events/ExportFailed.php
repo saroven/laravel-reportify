@@ -16,6 +16,7 @@ class ExportFailed
         public readonly string $title,
         public readonly string $exportFormat,
         public readonly string $errorMessage,
-        public readonly array $payload = []
+        public readonly array $payload = [],
+        public readonly ?string $exportId = null
     ) {}
 }

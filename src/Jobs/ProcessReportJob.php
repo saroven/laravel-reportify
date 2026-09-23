@@ -38,6 +38,7 @@ class ProcessReportJob implements ShouldQueue
     private array $additionalData;
     private bool $hideNoDataException;
     private mixed $dataProvider;
+    private string $exportId;
 
     public function __construct(
         array $requestData = [],
@@ -46,7 +47,8 @@ class ProcessReportJob implements ShouldQueue
         int|string|null $user = null,
         ?string $view = null,
         array $additionalData = [],
-        mixed $dataProvider = null
+        mixed $dataProvider = null,
+        ?string $exportId = null
     ) {
         if ($dataProvider instanceof \Closure) {
             throw new \InvalidArgumentException(
@@ -65,13 +67,15 @@ class ProcessReportJob implements ShouldQueue
         $this->additionalData = $additionalData;
         $this->hideNoDataException = (bool) ($additionalData['no_data_exception_disabled'] ?? false);
         $this->dataProvider = $dataProvider;
+        $this->exportId = $exportId 
+            ?? (string) ($additionalData['export_id'] ?? $requestData['_export_id'] ?? (string) \Illuminate\Support\Str::uuid());
     }
 
     public function handle(): void
     {
         $reportifyService = new ReportifyService($this->additionalData, $this->authUser);
 
-        ExportStarted::dispatch($this->authUser, $this->title, $this->exportType, $this->payload);
+        ExportStarted::dispatch($this->authUser, $this->title, $this->exportType, $this->payload, $this->exportId);
 
         if (ExportFormat::tryFrom($this->exportType) === null) {
             throw new Exception("Export process failed! Unknown export format: {$this->exportType}");
@@ -108,7 +112,7 @@ class ProcessReportJob implements ShouldQueue
             throw new Exception('Export process failed! Output file could not be generated.');
         }
 
-        ExportCompleted::dispatch($this->authUser, $this->title, $this->exportType, (string) $filePath, $this->payload);
+        ExportCompleted::dispatch($this->authUser, $this->title, $this->exportType, (string) $filePath, $this->payload, $this->exportId);
     }
 
     private function resolveData(): mixed
@@ -152,6 +156,11 @@ class ProcessReportJob implements ShouldQueue
             Log::error(sprintf('ProcessReportJob [%s]: %s', $this->type, $message), ['exception' => $e]);
         }
 
-        ExportFailed::dispatch($this->authUser, $this->title, $this->exportType, $message, $this->payload);
+        ExportFailed::dispatch($this->authUser, $this->title, $this->exportType, $message, $this->payload, $this->exportId);
+    }
+
+    public function getExportId(): string
+    {
+        return $this->exportId;
     }
 }

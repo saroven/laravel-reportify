@@ -15,6 +15,7 @@ class ExportStarted
         public readonly int|string|null $userId,
         public readonly string $title,
         public readonly string $exportFormat,
-        public readonly array $payload = []
+        public readonly array $payload = [],
+        public readonly ?string $exportId = null
     ) {}
 }
