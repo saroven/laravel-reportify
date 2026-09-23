@@ -497,6 +497,82 @@ protected function reportifyExportResponse(string $title): mixed
 
 ---
 
+## 🏢 Multi-Tenancy Support
+
+Reportify works seamlessly with multi-tenant Laravel packages including **`stancl/tenancy`** and **`spatie/laravel-multitenancy`**. Because `ProcessReportJob` implements Laravel's standard `ShouldQueue` interface and avoids storing Eloquent models in its constructor, tenant contexts are automatically preserved across queued export workers without serialization errors.
+
+### `stancl/tenancy`
+
+When using `stancl/tenancy`, background exports are automatically tenant-aware via the `QueueTenancyBootstrapper`:
+
+1. **Context Preservation**: The current `tenant_id` is captured on dispatch and restored before `handle()` executes.
+2. **Database Queues**: Ensure your `jobs` table uses a central database connection:
+   ```php
+   'connections' => [
+       'database' => [
+           'driver' => 'database',
+           'table' => 'jobs',
+           'queue' => 'default',
+           'retry_after' => 90,
+           'connection' => 'central',
+       ],
+   ],
+   ```
+3. **Storage Isolation**: If `FilesystemTenancyBootstrapper` is enabled, disks are automatically scoped. Alternatively, isolate paths using `$additionalData['file_dir']`:
+   ```php
+   return $this->exportReport(
+       $request,
+       'Sales Report',
+       additionalData: [
+           'file_dir' => 'exports/' . tenant('id'),
+       ],
+       dataProvider: SalesExport::class
+   );
+   ```
+4. **Event Listeners**: If your `downloads` table is in the central database, wrap event listeners in `tenancy()->central()`:
+   ```php
+   Event::listen(function (ExportCompleted $event) {
+       tenancy()->central(function () use ($event) {
+           Download::where('export_id', $event->exportId)->update([
+               'file_path' => $event->filePath,
+               'status'    => 'completed',
+           ]);
+       });
+   });
+   ```
+
+### `spatie/laravel-multitenancy`
+
+`spatie/laravel-multitenancy` works out of the box when queue tenant awareness is enabled in `config/multitenancy.php`:
+
+```php
+'queues_are_tenant_aware_by_default' => true,
+```
+
+- When enabled, Spatie captures the current tenant on dispatch and calls `$tenant->makeCurrent()` before job execution.
+- If automatic awareness is disabled, pass the tenant ID via `$additionalData` and call `$tenant->makeCurrent()` inside `getExportData()`.
+- Scope export directories per tenant using `$additionalData['file_dir']`:
+   ```php
+   return $this->exportReport(
+       $request,
+       'Sales Report',
+       additionalData: [
+           'file_dir' => 'exports/' . Tenant::current()->id,
+       ],
+       dataProvider: SalesExport::class
+   );
+   ```
+
+### Comparison Matrix
+
+| Feature | `stancl/tenancy` | `spatie/laravel-multitenancy` |
+|---|---|---|
+| **Queue Tenant Awareness** | Automatic via `QueueTenancyBootstrapper` | Automatic when `queues_are_tenant_aware_by_default => true` |
+| **Model Serialization Risk** | None (`ProcessReportJob` uses scalar IDs) | None (`ProcessReportJob` uses scalar IDs) |
+| **Storage Scoping** | Built-in via filesystem bootstrapper | Handled via `$additionalData['file_dir']` |
+
+---
+
 ## 🧪 Testing
 
 Run the test suite using Pest PHP:
