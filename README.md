@@ -39,6 +39,21 @@ php artisan serve
 
 ---
 
+## 📖 About
+
+This package started from a recurring problem: every Laravel project with reporting needs ends up with the same scattered code — mPDF calls in controllers, memory crashes on large datasets, separate queue jobs per format, and footer/header logic copied between files.
+
+Reportify pulls all of that into one place. You define what data to export via a `Reportable` class, pick a format, and the rest is handled — chunking for large PDFs, queuing, event dispatching, Blade templates for headers and footers, and ZIP packaging. The same interface works for every format, so there's nothing new to learn when you add a second export type to a controller.
+
+A few things worth knowing before you start:
+
+- `pdfChunk` is what you want for anything over a few thousand rows. It splits the data, renders parts separately, then merges them — so mPDF never has to hold the full dataset in memory.
+- Exports are queued by default. If your server doesn't run a queue worker, set `REPORTIFY_FORCE_SYNC=true` and everything runs inline.
+- The `Reportable` interface has one method. If your controller already has the data, you can implement it directly on the controller and skip the separate export class entirely.
+- Header margins are auto-calculated from your header HTML. If the result is off, `headerMargin` and `additionalHeaderMargin` in `$additionalData` let you correct it per-report without touching the config.
+
+---
+
 ## ⚡ Installation
 
 Install the package via Composer:
@@ -382,34 +397,112 @@ Include `<x-reportify-scripts />` in your master layout template (`layouts/app.b
 
 ```php
 return [
-    // Storage disk where export files are saved (default: 'public')
-    'storage_disk' => env('REPORTIFY_STORAGE_DISK', 'public'),
-
-    // Set to true to force inline synchronous execution on servers without queue daemons
-    'force_sync' => (bool) env('REPORTIFY_FORCE_SYNC', false),
-
-    // Base directory path for output files
+    'storage_disk'     => env('REPORTIFY_STORAGE_DISK', 'public'),
+    'force_sync'       => (bool) env('REPORTIFY_FORCE_SYNC', false),
     'export_directory' => 'exports',
+    'chunk_size'       => (int) env('REPORTIFY_CHUNK_SIZE', 2000),
 
-    // Batch chunk size for query processing and PDF merging
-    'chunk_size' => (int) env('REPORTIFY_CHUNK_SIZE', 2000),
-
-    // mPDF engine configuration
     'mpdf' => [
-        'backtrack_limit' => '1000000000',
-        'recursion_limit' => '1000000000',
-        'default_paper_size' => 'A4',
-        'default_orientation' => 'P',
-        'author' => env('APP_NAME', 'Laravel'),
+        'backtrack_limit'       => '1000000000',
+        'recursion_limit'       => '1000000000',
+        'default_paper_size'    => 'A4',
+        'default_orientation'   => 'P',
+        'author'                => env('APP_NAME', 'Laravel'),
+        'default_header_margin' => 28,
     ],
 
-    // Default Blade templates
     'views' => [
         'pdf_header' => 'reportify::pdf-header',
         'pdf_footer' => 'reportify::pdf-footer',
         'empty_pdf'  => 'reportify::empty-pdf',
     ],
 ];
+```
+
+---
+
+## 🗂 `$additionalData` Reference
+
+All export methods accept an `$additionalData` array for per-report customisation. The most commonly used keys:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `filename` | `string` | Custom output filename (without extension) |
+| `file_dir` | `string` | Override the output directory |
+| `orientation` | `string` | PDF orientation: `'P'` (portrait) or `'L'` (landscape) |
+| `paper_size` | `string` | mPDF paper size, e.g. `'A4'`, `'A3'`, `'Letter'` |
+| `headerHtml` | `string` | Raw HTML string injected into the PDF header |
+| `headerMargin` | `int` | **Hard override** for the PDF top margin in mm — skips auto-calculation entirely |
+| `additionalHeaderMargin` | `int` | **Additive nudge** added on top of the auto-calculated (or overridden) margin. Accepts negative values |
+| `hidePdfHeader` | `bool` | Hide the PDF header entirely |
+| `hidePdfFooter` | `bool` | Hide the PDF footer entirely |
+| `hidePageNumber` | `bool` | Hide page number in footer |
+| `hidePrintDate` | `bool` | Hide print date in footer |
+| `hidePrintBy` | `bool` | Hide "printed by" user stamp in footer |
+| `hidePoweredBy` | `bool` | Hide "Powered by Reportify" line in footer |
+| `hideVersionNumber` | `bool` | Hide version number in footer |
+| `additionalFooter` | `string` | Extra HTML appended to the PDF footer |
+| `separator` | `string` | Column delimiter for TXT exports (default: `~`) |
+| `extension` | `string` | File extension for TXT exports (default: `txt`). Use `'none'` for no extension |
+| `no_data_exception_disabled` | `bool` | Allow export to proceed with an empty dataset instead of throwing |
+| `data_chunk_size` | `int` | Override chunk size for this export only |
+
+### Header Margin Priority
+
+For PDF exports the top margin is resolved in this order:
+
+```
+additionalData['headerMargin']          → 1. Hard override (replaces auto-calc)
+    ↓ if not set
+determineHeaderMargin($headerHtml)      → 2. Auto-calculated from HTML tag count
+    ↓ (base for the calculation)
+config('reportify.mpdf.default_header_margin', 28)  → 3. Global config default
+
++ additionalData['additionalHeaderMargin']  → Always added last (default 0)
+```
+
+**Examples:**
+
+```php
+// Let Reportify auto-calculate but nudge everything 10mm lower
+Reportify::exportPdf($request->all(), $data, 'exports/pdf', 'Invoice', 'reports.invoice', [
+    'headerHtml'             => '<div><h2>Company</h2><p>Dhaka</p></div>',
+    'additionalHeaderMargin' => 10,
+]);
+
+// Hard-set a fixed 45mm top margin (skip auto-calculation)
+Reportify::exportPdf($request->all(), $data, 'exports/pdf', 'Report', 'reports.main', [
+    'headerMargin' => 45,
+]);
+
+// Global default for all reports (config/reportify.php)
+'mpdf' => [
+    'default_header_margin' => 35,
+],
+```
+
+---
+
+## 🌐 API Controller Support
+
+`HasReportify::exportReport()` automatically detects whether the request expects JSON and returns the appropriate response — no extra configuration needed:
+
+```php
+// Web request  → redirect back with flash message
+// API request  → JSON response: { "message": "Export for 'X' is being processed." }
+return $this->exportReport($request, 'User Report', dataProvider: UserExport::class);
+```
+
+Override `reportifyExportResponse()` in your controller for fully custom behaviour:
+
+```php
+protected function reportifyExportResponse(string $title): mixed
+{
+    return response()->json([
+        'status'  => 'queued',
+        'message' => "'{$title}' export is queued.",
+    ]);
+}
 ```
 
 ---
@@ -421,6 +514,8 @@ Run the test suite using Pest PHP:
 ```bash
 vendor/bin/pest
 ```
+
+49 tests, 82 assertions.
 
 ---
 
