@@ -61,6 +61,23 @@ trait HasReportify
             );
         }
 
+        return $this->reportifyExportResponse($title);
+    }
+
+    /**
+     * Build the response returned after an export job is dispatched.
+     * Override this in your controller for custom behaviour.
+     *
+     * Returns a JSON response for API requests, or a back() redirect for web requests.
+     */
+    protected function reportifyExportResponse(string $title): mixed
+    {
+        if (request()->expectsJson()) {
+            return response()->json([
+                'message' => "Export for '{$title}' is being processed. Check Download Manager.",
+            ]);
+        }
+
         return back()->with('success', "Export for '{$title}' processed successfully. Check Download Manager.");
     }
 

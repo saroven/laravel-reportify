@@ -171,7 +171,10 @@ class ReportifyService
             $headerMargin = 5;
             if (!($additionalData['hidePdfHeader'] ?? false)) {
                 $headerHtml = $additionalData['headerHtml'] ?? '';
-                $headerMargin = $this->determineHeaderMargin($headerHtml);
+                $headerMargin = isset($additionalData['headerMargin'])
+                    ? (int) $additionalData['headerMargin']
+                    : $this->determineHeaderMargin($headerHtml);
+                $headerMargin += (int) ($additionalData['additionalHeaderMargin'] ?? 0);
                 $pdf->loadHeader(config('reportify.views.pdf_header', 'reportify::pdf-header'), [
                     'header_html' => $headerHtml,
                 ]);
@@ -301,7 +304,10 @@ class ReportifyService
         $headerMargin = 5;
         if (!($additionalData['hidePdfHeader'] ?? false)) {
             $headerHtml = $additionalData['headerHtml'] ?? '';
-            $headerMargin = $this->determineHeaderMargin($headerHtml);
+            $headerMargin = isset($additionalData['headerMargin'])
+                ? (int) $additionalData['headerMargin']
+                : $this->determineHeaderMargin($headerHtml);
+            $headerMargin += (int) ($additionalData['additionalHeaderMargin'] ?? 0);
             $pdf->loadHeader(config('reportify.views.pdf_header', 'reportify::pdf-header'), [
                 'header_html' => $headerHtml,
             ]);
@@ -311,9 +317,13 @@ class ReportifyService
         if (!($additionalData['hidePdfFooter'] ?? false)) {
             $bottomMargin = 15;
             $pdf->loadFooter(config('reportify.views.pdf_footer', 'reportify::pdf-footer'), [
-                'hide_page_number' => $additionalData['hidePageNumber'] ?? false,
-                'additional_footer' => $additionalData['additionalFooter'] ?? '',
-                'authUserInfo' => $this->authUserInfo,
+                'hide_page_number'    => $additionalData['hidePageNumber'] ?? false,
+                'hide_print_date'     => $additionalData['hidePrintDate'] ?? false,
+                'hide_print_by'       => $additionalData['hidePrintBy'] ?? false,
+                'hide_powered_by'     => $additionalData['hidePoweredBy'] ?? false,
+                'hide_version_number' => $additionalData['hideVersionNumber'] ?? false,
+                'additional_footer'   => $additionalData['additionalFooter'] ?? '',
+                'authUserInfo'        => $this->authUserInfo,
             ]);
         }
 
@@ -408,9 +418,13 @@ class ReportifyService
 
     private function getModifiedResponse(mixed $response, array $additionalData): array
     {
-        $data = $response['_data'] ?? $response;
-        if (!empty($response['_additionalData'] ?? [])) {
-            $additionalData = array_merge($additionalData, $response['_additionalData']);
+        if (is_array($response) && array_key_exists('_data', $response)) {
+            $data = $response['_data'];
+            if (!empty($response['_additionalData'] ?? [])) {
+                $additionalData = array_merge($additionalData, $response['_additionalData']);
+            }
+        } else {
+            $data = $response;
         }
 
         return [$data, $additionalData];
@@ -457,7 +471,10 @@ class ReportifyService
             $headerMargin = 5;
             if (!($additionalData['hidePdfHeader'] ?? false)) {
                 $headerHtml = $additionalData['headerHtml'] ?? '';
-                $headerMargin = $this->determineHeaderMargin($headerHtml);
+                $headerMargin = isset($additionalData['headerMargin'])
+                    ? (int) $additionalData['headerMargin']
+                    : $this->determineHeaderMargin($headerHtml);
+                $headerMargin += (int) ($additionalData['additionalHeaderMargin'] ?? 0);
             }
 
             $pdf = (new PdfEngine())
@@ -471,18 +488,22 @@ class ReportifyService
                 return $filePath;
             }
 
+            $pdf->loadFooter(config('reportify.views.pdf_footer', 'reportify::pdf-footer'), [
+                'hide_page_number'    => $additionalData['hidePageNumber'] ?? false,
+                'hide_print_date'     => $additionalData['hidePrintDate'] ?? false,
+                'hide_print_by'       => $additionalData['hidePrintBy'] ?? false,
+                'hide_powered_by'     => $additionalData['hidePoweredBy'] ?? false,
+                'hide_version_number' => $additionalData['hideVersionNumber'] ?? false,
+                'additional_footer'   => $additionalData['additionalFooter'] ?? '',
+                'authUserInfo'        => $this->authUserInfo,
+            ]);
+
             $pageCount = $pdf->getInstance()->setSourceFile($fullPath);
-            
+
             for ($i = 1; $i <= $pageCount; $i++) {
                 $pdf->getInstance()->AddPage();
                 $tplIdx = $pdf->getInstance()->importPage($i);
                 $pdf->getInstance()->useTemplate($tplIdx, 0, 0, null, null, true);
-                
-                $pdf->loadFooter(config('reportify.views.pdf_footer', 'reportify::pdf-footer'), [
-                    'hide_footer_text' => true,
-                    'additional_footer' => '',
-                    'authUserInfo' => $this->authUserInfo,
-                ]);
             }
 
             return $pdf->export($fileName, $context);
@@ -492,8 +513,10 @@ class ReportifyService
         }
     }
 
-    public function determineHeaderMargin(string $headerHtml, int $headerMargin = 28): int
+    public function determineHeaderMargin(string $headerHtml, ?int $headerMargin = null): int
     {
+        $headerMargin ??= (int) config('reportify.mpdf.default_header_margin', 28);
+
         if (empty(trim($headerHtml))) {
             return $headerMargin;
         }

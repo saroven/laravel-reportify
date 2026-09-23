@@ -52,11 +52,12 @@ return [
     |
     */
     'mpdf' => [
-        'backtrack_limit' => '1000000000',
-        'recursion_limit' => '1000000000',
-        'default_paper_size' => 'A4',
-        'default_orientation' => 'P',
-        'author' => env('APP_NAME', 'Laravel'),
+        'backtrack_limit'       => '1000000000',
+        'recursion_limit'       => '1000000000',
+        'default_paper_size'    => 'A4',
+        'default_orientation'   => 'P',
+        'author'                => env('APP_NAME', 'Reportify'),
+        'default_header_margin' => 28,
     ],
 
     /*

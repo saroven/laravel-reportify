@@ -59,12 +59,19 @@ class PdfEngine
 
     public function setPaper(string $size = 'A4', string $orientation = 'P'): static
     {
+        if (!empty($this->bodyHtml)) {
+            throw new \LogicException(
+                'PdfEngine: setPaper() must be called before loadView(). '
+                . 'Creating a new Mpdf instance after loading HTML would discard the body content.'
+            );
+        }
+
         $orient = strtoupper(substr($orientation, 0, 1)) === 'L' ? 'L' : 'P';
         $author = (string) (config('reportify.mpdf.author') ?? config('app.name', 'Laravel'));
 
         $this->mpdf = new Mpdf([
-            'mode' => 'utf-8',
-            'format' => $size,
+            'mode'        => 'utf-8',
+            'format'      => $size,
             'orientation' => $orient,
         ]);
         $this->mpdf->setAutoBottomMargin = 'stretch';
@@ -73,20 +80,18 @@ class PdfEngine
         return $this;
     }
 
-    public function setPageMargins(int $left, int $right = 0, int $top = 0, int $bottom = 0): static
+    public function setPageMargins(int $left, ?int $right = null, ?int $top = null, ?int $bottom = null): static
     {
-        $args = func_num_args();
-
-        if ($args === 1) {
+        if ($right === null) {
             $right = $top = $bottom = $left;
-        } elseif ($args === 2) {
+        } elseif ($top === null) {
             $top = $bottom = $right;
-        } elseif ($args === 3) {
+        } elseif ($bottom === null) {
             $bottom = $top;
         }
 
-        $this->mpdf->tMargin = $top;
-        $this->mpdf->bMargin = $bottom;
+        $this->mpdf->tMargin    = $top;
+        $this->mpdf->bMargin    = $bottom;
         $this->mpdf->DeflMargin = $left;
         $this->mpdf->DefrMargin = $right;
 

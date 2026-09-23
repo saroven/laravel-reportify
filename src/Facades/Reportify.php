@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Saroven\Reportify\Facades;
 
 use Illuminate\Support\Facades\Facade;
 
 /**
+
  * @method static ?string exportExcel(array $request, mixed $response, string $context, string $title, ?string $view = null, array $additionalData = [])
  * @method static ?string exportExcelZip(array $request, mixed $response, string $context, string $title, ?string $view = null, array $additionalData = [])
  * @method static ?string exportCsv(array $request, mixed $response, string $context, string $title, ?string $view = null, array $additionalData = [])

@@ -40,7 +40,8 @@ class ArrayExport implements FromArray, WithHeadings
 
     public function headings(): array
     {
-        $first = reset($this->items);
+        $firstKey = array_key_first($this->items);
+        $first = $firstKey !== null ? $this->items[$firstKey] : false;
 
         if (!$first) {
             return [];

@@ -48,6 +48,13 @@ class ProcessReportJob implements ShouldQueue
         array $additionalData = [],
         mixed $dataProvider = null
     ) {
+        if ($dataProvider instanceof \Closure) {
+            throw new \InvalidArgumentException(
+                'ProcessReportJob does not support Closure as $dataProvider because closures cannot be serialized. '
+                . 'Pass a class-string or a Reportable instance instead.'
+            );
+        }
+
         $this->type = $type;
         $this->title = $title ?? 'Document';
         $this->payload = $requestData;
@@ -64,11 +71,16 @@ class ProcessReportJob implements ShouldQueue
     {
         $reportifyService = new ReportifyService($this->additionalData, $this->authUser);
 
-        // 1. Dispatch ExportStarted Event
         ExportStarted::dispatch($this->authUser, $this->title, $this->exportType, $this->payload);
 
         if (ExportFormat::tryFrom($this->exportType) === null) {
             throw new Exception("Export process failed! Unknown export format: {$this->exportType}");
+        }
+
+        if ($this->exportType === ExportFormat::PDF_STREAM->value) {
+            throw new Exception(
+                "Export process failed! 'pdfStream' is a browser-only streaming format and cannot be run in a background job."
+            );
         }
 
         $response = $this->resolveData();
@@ -96,7 +108,6 @@ class ProcessReportJob implements ShouldQueue
             throw new Exception('Export process failed! Output file could not be generated.');
         }
 
-        // 2. Dispatch ExportCompleted Event
         ExportCompleted::dispatch($this->authUser, $this->title, $this->exportType, (string) $filePath, $this->payload);
     }
 
@@ -141,7 +152,6 @@ class ProcessReportJob implements ShouldQueue
             Log::error(sprintf('ProcessReportJob [%s]: %s', $this->type, $message), ['exception' => $e]);
         }
 
-        // 3. Dispatch ExportFailed Event
         ExportFailed::dispatch($this->authUser, $this->title, $this->exportType, $message, $this->payload);
     }
 }
