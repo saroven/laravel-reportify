@@ -33,7 +33,7 @@ class ReportifyService
         $userModel = config('auth.providers.users.model', '\App\Models\User');
         $this->authUserInfo = ($this->authUser && class_exists($userModel)) ? $userModel::find($this->authUser) : null;
         
-        $this->fileUniqueHash = now()->format('Ymd-His-u') . '-' . strtolower(str()->random(6));
+        $this->fileUniqueHash = (string) ($data['export_id'] ?? (now()->format('Ymd-His-u') . '-' . strtolower(str()->random(6))));
         $this->chunkSize = (int)($data['data_chunk_size'] ?? config('reportify.chunk_size', 2000));
         $this->hideNoDataException = (bool)($data['no_data_exception_disabled'] ?? false);
     }

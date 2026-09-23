@@ -68,7 +68,8 @@ class ProcessReportJob implements ShouldQueue
         $this->hideNoDataException = (bool) ($additionalData['no_data_exception_disabled'] ?? false);
         $this->dataProvider = $dataProvider;
         $this->exportId = $exportId 
-            ?? (string) ($additionalData['export_id'] ?? $requestData['_export_id'] ?? (string) \Illuminate\Support\Str::uuid());
+            ?? (string) ($additionalData['export_id'] ?? $requestData['_export_id'] ?? (string) \Illuminate\Support\Str::orderedUuid());
+        $this->additionalData['export_id'] = $this->exportId;
     }
 
     public function handle(): void

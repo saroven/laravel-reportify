@@ -33,7 +33,8 @@ trait HasReportify
         $requestData = $request instanceof Request ? $request->all() : $request;
         $exportFormat = (string) ($requestData['export'] ?? 'excel');
         $dataProvider = $dataProvider ?? ($this instanceof Reportable ? static::class : null);
-        $exportId = $exportId ?? (string) ($additionalData['export_id'] ?? $requestData['_export_id'] ?? (string) str()->uuid());
+        $exportId = $exportId ?? (string) ($additionalData['export_id'] ?? $requestData['_export_id'] ?? (string) str()->orderedUuid());
+        $additionalData['export_id'] = $exportId;
 
         if ($exportFormat === 'pdfStream') {
             return $this->streamReport($requestData, $title, $view ?? config('reportify.views.empty_pdf', 'reportify::empty-pdf'), $additionalData, $dataProvider);
