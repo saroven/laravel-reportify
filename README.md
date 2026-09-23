@@ -585,6 +585,12 @@ vendor/bin/pest
 
 ---
 
+## 🤝 Contributing
+
+Contributions are welcome! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for details on code style, testing standards, and the pull request submission process.
+
+---
+
 ## 💳 Credits
 - Special thanks to [S M Iftakhairul](https://github.com/smiftakhairul) for architecture & design inspiration.
 
