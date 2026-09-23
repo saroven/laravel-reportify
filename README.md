@@ -1,6 +1,7 @@
 # Reportify 🚀
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/saroven/laravel-reportify.svg?style=flat-square)](https://packagist.org/packages/saroven/laravel-reportify)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/saroven/laravel-reportify/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/saroven/laravel-reportify/actions/workflows/run-tests.yml)
 [![Total Downloads](https://img.shields.io/packagist/dt/saroven/laravel-reportify.svg?style=flat-square)](https://packagist.org/packages/saroven/laravel-reportify)
 [![License](https://img.shields.io/packagist/l/saroven/laravel-reportify.svg?style=flat-square)](LICENSE.md)
 [![Demo Repository](https://img.shields.io/badge/Demo%20Repo-laravel--reportify--demo-blue?style=flat-square&logo=github)](https://github.com/saroven/laravel-reportify-demo)
