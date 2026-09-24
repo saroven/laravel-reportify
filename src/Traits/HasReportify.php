@@ -66,7 +66,7 @@ trait HasReportify
             );
         }
 
-        return $this->reportifyExportResponse($title, $exportId);
+        return $this->reportifyExportResponse($title, $exportId, queued: ! $isSync);
     }
 
     /**
@@ -75,11 +75,15 @@ trait HasReportify
      *
      * Returns a JSON response for API requests, or a back() redirect for web requests.
      */
-    protected function reportifyExportResponse(string $title, ?string $exportId = null): mixed
+    protected function reportifyExportResponse(string $title, ?string $exportId = null, bool $queued = true): mixed
     {
+        $message = $queued
+            ? "Export for '{$title}' is being processed. Check Download Manager."
+            : "Export for '{$title}' is ready. Check Download Manager.";
+
         if (request()->expectsJson()) {
             $data = [
-                'message' => "Export for '{$title}' is being processed. Check Download Manager.",
+                'message' => $message,
             ];
 
             if ($exportId !== null) {
@@ -89,7 +93,7 @@ trait HasReportify
             return response()->json($data);
         }
 
-        return back()->with('success', "Export for '{$title}' processed successfully. Check Download Manager.");
+        return back()->with('success', $message);
     }
 
     /**

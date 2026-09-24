@@ -118,19 +118,25 @@ class ReportifyService
             if ($view) {
                 $txtData = strip_tags(view($view, compact('response', 'request', 'additionalData'))->render());
             } else {
-                $separator = $additionalData['separator'] ?? '~';
-                $txtData = collect($response)
-                    ->map(function (mixed $data) use ($separator): string {
-                        if (is_object($data)) {
-                            $data = method_exists($data, 'toArray') ? $data->toArray() : (array) $data;
-                        }
-                        if (!is_array($data)) {
-                            return (string) $data;
-                        }
-                        $cleanData = array_filter($data, fn($v): bool => !is_array($v) && !is_object($v));
-                        return implode($separator, $cleanData);
-                    })
-                    ->implode("\n") . "\n";
+                $separator = $additionalData['separator'] ?? ' | ';
+                $rows = collect($response)->map(function (mixed $data): mixed {
+                    if (is_object($data)) {
+                        $data = method_exists($data, 'toArray') ? $data->toArray() : (array) $data;
+                    }
+
+                    return is_array($data)
+                        ? array_filter($data, fn($v): bool => !is_array($v) && !is_object($v))
+                        : (string) $data;
+                });
+
+                $lines = $rows->map(fn (mixed $row): string => is_array($row) ? implode($separator, $row) : $row);
+
+                $firstRow = $rows->first();
+                if (is_array($firstRow) && !array_is_list($firstRow)) {
+                    $lines->prepend(implode($separator, array_keys($firstRow)));
+                }
+
+                $txtData = $lines->implode("\n") . "\n";
             }
 
             Storage::disk($this->disk)->put($filePath, $txtData);
@@ -223,27 +229,31 @@ class ReportifyService
             [$response, $additionalData] = $this->getModifiedResponse($response, $additionalData);
             $responseChunks = collect($response)->chunk($this->chunkSize);
 
-            $additionalData['hidePrintDate'] = true;
-            $additionalData['hidePrintBy'] = true;
-            $additionalData['hidePoweredBy'] = true;
-            $additionalData['hidePageNumber'] = true;
-            $additionalData['hideVersionNumber'] = true;
+            // Settings for rendering each individual part. The caller's
+            // $additionalData is left untouched: it is reused below for the
+            // merge and for the footer stamped once onto the merged file.
+            $chunkBaseData = array_merge($additionalData, [
+                'hidePrintDate' => true,
+                'hidePrintBy' => true,
+                'hidePoweredBy' => true,
+                'hidePageNumber' => true,
+                'hideVersionNumber' => true,
+                'hidePdfFooter' => true,
+                'bottom_margin' => 10,
+            ]);
 
             foreach ($responseChunks as $index => $responseChunk) {
                 $part = $index + 1;
-                $additionalData['showHeader'] = ($index === 0);
-                $additionalData['firstLoop'] = ($index === 0);
-                $additionalData['lastLoop'] = ($index === $responseChunks->count() - 1);
-                $additionalData['chunkLastSl'] = $index * $this->chunkSize;
+                $chunkAdditionalData = array_merge($chunkBaseData, [
+                    'showHeader' => $index === 0,
+                    'firstLoop' => $index === 0,
+                    'lastLoop' => $index === $responseChunks->count() - 1,
+                    'chunkLastSl' => $index * $this->chunkSize,
+                ]);
 
                 if ($customFileName) {
-                    $additionalData['filename'] = str()->slug("{$customFileName} (Part {$part})") . '-' . $this->fileUniqueHash;
+                    $chunkAdditionalData['filename'] = str()->slug("{$customFileName} (Part {$part})") . '-' . $this->fileUniqueHash;
                 }
-
-                $chunkAdditionalData = array_merge($additionalData, [
-                    'hidePdfFooter' => true,
-                    'bottom_margin' => 10,
-                ]);
 
                 $chunkedFile = $this->exportPdf($request, $responseChunk, 'exports/chunks', "{$title} (Part {$part})", $view, $chunkAdditionalData);
                 
@@ -262,12 +272,8 @@ class ReportifyService
             }
 
             if (empty($chunkedFiles)) {
-                $chunkAdditionalData = array_merge($additionalData, [
-                    'hidePdfFooter' => true,
-                    'bottom_margin' => 10,
-                ]);
                 $emptyView = config('reportify.views.empty_pdf', 'reportify::empty-pdf');
-                $chunkedFiles[] = $this->exportPdf($request, [], 'exports/chunks', 'Empty PDF', $emptyView, $chunkAdditionalData);
+                $chunkedFiles[] = $this->exportPdf($request, [], 'exports/chunks', 'Empty PDF', $emptyView, $chunkBaseData);
             }
 
             $filePath = $this->mergePdfFiles($chunkedFiles, $context, $fileName, $additionalData);

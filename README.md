@@ -245,6 +245,7 @@ if ($request->has('export')) {
 2. Generates standalone PDF parts in temporary storage without memory overflow.
 3. Merges all chunked PDF parts into a single output PDF using mPDF's page template importer.
 4. Automatically cleans up temporary chunk files from storage.
+5. Stamps the footer (page numbers, print date, "printed by") once onto the merged file, so page numbering runs across the whole document. Your own `hide*` flags in `$additionalData` still apply to that final footer.
 
 ---
 
@@ -261,8 +262,11 @@ $excelPath = Reportify::exportExcel($request->all(), $data, 'exports/excel', 'Us
 // Export CSV (.csv)
 $csvPath = Reportify::exportCsv($request->all(), $data, 'exports/csv', 'Users List');
 
-// Export Text File (.txt with custom delimiter)
-$txtPath = Reportify::exportTxt($request->all(), $data, 'exports/txt', 'Users List', null, ['separator' => '|']);
+// Export Text File (.txt) — first line is the column headings (row keys), columns joined by " | "
+$txtPath = Reportify::exportTxt($request->all(), $data, 'exports/txt', 'Users List');
+
+// Custom delimiter
+$txtPath = Reportify::exportTxt($request->all(), $data, 'exports/txt', 'Users List', null, ['separator' => ',']);
 
 // Export Multi-Part ZIP Package (.zip)
 $zipPath = Reportify::prepareZip('pdf', $request->all(), $largeData, 'exports/zips', 'User Statements', 'reports.statement-pdf');
@@ -433,7 +437,7 @@ All export methods accept an `$additionalData` array for per-report customisatio
 | `hidePoweredBy` | `bool` | Hide "Powered by Reportify" line in footer |
 | `hideVersionNumber` | `bool` | Hide version number in footer |
 | `additionalFooter` | `string` | Extra HTML appended to the PDF footer |
-| `separator` | `string` | Column delimiter for TXT exports (default: `~`) |
+| `separator` | `string` | Column delimiter for TXT exports (default: ` \| `). A heading line from the row keys is always written first |
 | `extension` | `string` | File extension for TXT exports (default: `txt`). Use `'none'` for no extension |
 | `no_data_exception_disabled` | `bool` | Allow export to proceed with an empty dataset instead of throwing |
 | `data_chunk_size` | `int` | Override chunk size for this export only |
@@ -479,15 +483,17 @@ Reportify::exportPdf($request->all(), $data, 'exports/pdf', 'Report', 'reports.m
 `HasReportify::exportReport()` automatically detects whether the request expects JSON and returns the appropriate response — no extra configuration needed:
 
 ```php
-// Web request  → redirect back with flash message
+// Web request  → redirect back with a `success` flash message
 // API request  → JSON: { "message": "Export for 'X' is being processed...", "export_id": "uuid" }
+// Queued exports say "is being processed"; sync exports (queue driver `sync`
+// or `force_sync`) say "is ready" — both end with "Check Download Manager.".
 return $this->exportReport($request, 'User Report', dataProvider: UserExport::class);
 ```
 
 Override `reportifyExportResponse()` in your controller for fully custom behaviour:
 
 ```php
-protected function reportifyExportResponse(string $title): mixed
+protected function reportifyExportResponse(string $title, ?string $exportId = null, bool $queued = true): mixed
 {
     return response()->json([
         'status'  => 'queued',
